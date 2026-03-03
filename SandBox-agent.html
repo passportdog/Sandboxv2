@@ -1,0 +1,600 @@
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ghosta Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+body {
+font-family: 'Geist', sans-serif;
+}
+.font-geist-mono {
+font-family: 'Geist Mono', monospace !important;
+}
+/* Smooth scrolling & Minimal Scrollbar */
+html { scroll-behavior: smooth; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #d4d4d4; }
+/* Ambient Background Container */
+#canvas-container {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+z-index: 0;
+pointer-events: none;
+overflow: hidden;
+mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent 100%);
+-webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent 100%);
+transition: all 1s ease-in-out;
+}
+/* Cinematic Effects */
+.bg-grid {
+position: absolute;
+inset: 0;
+z-index: 1;
+pointer-events: none;
+background-size: 40px 40px;
+background-image:
+linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+opacity: 0;
+transform: scale(1.05);
+transition: opacity 1.5s ease-out, transform 2s ease-out;
+}
+.bg-grid.active {
+opacity: 1;
+transform: scale(1);
+}
+.light-streak {
+position: absolute;
+right: 10%;
+top: -100%;
+width: 1px;
+height: 50vh;
+background: linear-gradient(to bottom, transparent, rgba(20, 20, 20, 0.2), transparent);
+z-index: 2;
+pointer-events: none;
+opacity: 0;
+transition: top 2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease-in-out;
+}
+.light-streak.active {
+top: 150%;
+opacity: 1;
+}
+/* Step Animation */
+.step-item {
+opacity: 0.3;
+transform: translateY(4px);
+transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.step-item.active {
+opacity: 1;
+transform: translateY(0);
+}
+.step-item.active .step-dot {
+background-color: #171717;
+box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+.step-item.completed .step-dot {
+background-color: #10b981; /* Emerald for verified feel */
+}
+.step-item.completed span {
+color: #737373;
+}
+/* Button Glow */
+.glow-btn::before {
+content: '';
+position: absolute;
+top: -2px; left: -2px; right: -2px; bottom: -2px;
+background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+border-radius: inherit;
+z-index: -1;
+animation: borderGlow 3s linear infinite;
+opacity: 0;
+transition: opacity 0.3s;
+}
+.glow-btn:hover::before {
+opacity: 1;
+}
+@keyframes borderGlow {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+</style></head>
+<body class="bg-[#fafafa] text-neutral-900 antialiased h-screen w-full overflow-hidden flex selection:bg-neutral-200 selection:text-black">
+
+    <!-- Ambient 3D Background & Cinematic Overlays -->
+    <div id="canvas-container"></div>
+    <div class="bg-grid" id="cinematic-grid"></div>
+    <div class="light-streak" id="cinematic-streak"></div>
+
+    <!-- 1) LEFT ICON RAIL (Desktop Only - New Taxonomy) -->
+    <aside class="hidden lg:flex w-24 flex-col items-center justify-center h-full z-40 shrink-0 pointer-events-none relative">
+        <div class="pointer-events-auto flex flex-col gap-3 bg-white/70 backdrop-blur-xl border border-neutral-200/50 rounded-full p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all hover:bg-white/90">
+            
+            <!-- Branding -->
+            <div class="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center text-white mb-2 shadow-sm cursor-pointer hover:bg-neutral-800 transition-colors">
+                <span class="text-xs font-medium tracking-tighter">GH</span>
+            </div>
+
+            <div class="w-full h-px bg-neutral-200/50 mb-1"></div>
+
+            <!-- Primary Nav -->
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-900 bg-neutral-100 transition-all relative cursor-pointer shadow-sm border border-neutral-200/50">
+                <iconify-icon icon="solar:home-angle-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Control Room</span>
+            </button>
+            
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100/80 transition-all relative cursor-pointer">
+                <iconify-icon icon="solar:server-square-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Engine</span>
+            </button>
+
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100/80 transition-all relative cursor-pointer">
+                <iconify-icon icon="solar:puzzle-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Workflows</span>
+            </button>
+
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100/80 transition-all relative cursor-pointer">
+                <iconify-icon icon="solar:cpu-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Models</span>
+            </button>
+
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100/80 transition-all relative cursor-pointer">
+                <iconify-icon icon="solar:gallery-minimalistic-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Artifacts</span>
+            </button>
+            
+            <button class="group grid place-items-center w-10 h-10 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100/80 transition-all relative cursor-pointer">
+                <iconify-icon icon="solar:document-text-linear" width="20" height="20"></iconify-icon>
+                <span class="absolute left-14 bg-neutral-900 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-geist-mono shadow-sm z-50">Logs</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTROL ROOM -->
+    <main class="flex-1 flex flex-col relative min-w-0 z-20 pointer-events-none">
+        
+        <!-- Header (Engine Status) -->
+        <header class="h-20 flex items-center justify-between lg:justify-end px-8 z-30 shrink-0 w-full">
+            
+            <!-- Mobile Branding -->
+            <div class="lg:hidden pointer-events-auto flex items-center gap-2">
+                 <div class="w-8 h-8 rounded-full bg-neutral-900 flex items-center justify-center text-white shadow-sm">
+                    <span class="text-[10px] font-medium tracking-tighter">GH</span>
+                </div>
+            </div>
+
+            <!-- Status Pill -->
+            <div id="header-pod-status" class="pointer-events-auto flex items-center gap-2.5 px-4 py-2 rounded-full border border-neutral-200/80 bg-white/60 backdrop-blur-xl shadow-sm transition-all duration-500 hover:bg-white hover:border-neutral-300 group">
+                <span class="w-2 h-2 rounded-full bg-neutral-300 transition-colors duration-500" id="header-dot"></span>
+                <span id="header-status-text" class="text-xs font-medium text-neutral-600 font-geist-mono uppercase tracking-widest transition-colors duration-500 group-hover:text-neutral-900">Engine Offline</span>
+            </div>
+        </header>
+
+        <!-- Center Content Area -->
+        <div class="flex-1 relative w-full h-full pointer-events-auto flex flex-col overflow-hidden">
+            
+            <!-- STATE 1: IDLE -->
+            <div id="state-idle" class="absolute inset-0 flex flex-col items-center justify-center transition-all duration-700 z-10 opacity-100 scale-100">
+                <div class="flex flex-col items-center text-center max-w-md px-6">
+                    <h1 class="text-3xl md:text-4xl font-medium tracking-tight text-neutral-900 mb-3 flex items-center gap-3">
+                        <span class="text-[0.9em]">🔮</span> Sandbox is Idle
+                    </h1>
+                    <p class="text-sm text-neutral-500 font-geist-mono mb-10 tracking-wide">No active GPU sessions. Ready when you are.</p>
+                    
+                    <button id="btn-start-engine" class="glow-btn relative px-8 py-3.5 bg-neutral-900 text-white rounded-2xl text-sm font-medium hover:bg-neutral-800 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center gap-3 overflow-hidden active:scale-[0.98] group">
+                        <span class="relative z-10 flex items-center gap-2">
+                            <iconify-icon icon="solar:bolt-linear" width="18" class="text-white/90 group-hover:scale-110 transition-transform"></iconify-icon>
+                            Start Engine
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STATE 2: BOOTING SEQUENCE -->
+            <div id="state-booting" class="absolute inset-0 flex flex-col items-center justify-center transition-all duration-700 z-10 opacity-0 scale-95 pointer-events-none">
+                <div class="flex flex-col items-center max-w-md w-full px-6">
+                    
+                    <div class="flex items-center gap-4 mb-12">
+                        <div class="w-12 h-12 rounded-full bg-white border border-neutral-200 shadow-sm flex items-center justify-center">
+                            <iconify-icon icon="solar:cpu-linear" width="24" class="text-neutral-900 animate-pulse"></iconify-icon>
+                        </div>
+                        <h2 class="text-2xl font-medium tracking-tight text-neutral-900" id="boot-title">Booting Runtime...</h2>
+                    </div>
+                    
+                    <div class="w-full flex flex-col gap-6 font-geist-mono text-xs max-w-[280px]">
+                        <div class="step-item flex items-center gap-4" id="step-1">
+                            <div class="w-2 h-2 rounded-full border border-neutral-300 step-dot transition-colors duration-300 relative">
+                                <span class="absolute inset-0 rounded-full animate-ping bg-neutral-400 opacity-0"></span>
+                            </div>
+                            <span class="text-neutral-600 tracking-wide">Mounting Volume</span>
+                        </div>
+                        <div class="step-item flex items-center gap-4" id="step-2">
+                            <div class="w-2 h-2 rounded-full border border-neutral-300 step-dot transition-colors duration-300 relative">
+                                <span class="absolute inset-0 rounded-full animate-ping bg-neutral-400 opacity-0"></span>
+                            </div>
+                            <span class="text-neutral-600 tracking-wide">Verifying Models</span>
+                        </div>
+                        <div class="step-item flex items-center gap-4" id="step-3">
+                            <div class="w-2 h-2 rounded-full border border-neutral-300 step-dot transition-colors duration-300 relative">
+                                <span class="absolute inset-0 rounded-full animate-ping bg-neutral-400 opacity-0"></span>
+                            </div>
+                            <span class="text-neutral-600 tracking-wide">Starting ComfyUI</span>
+                        </div>
+                        <div class="step-item flex items-center gap-4" id="step-4">
+                            <div class="w-2 h-2 rounded-full border border-neutral-300 step-dot transition-colors duration-300 relative">
+                                <span class="absolute inset-0 rounded-full animate-ping bg-neutral-400 opacity-0"></span>
+                            </div>
+                            <span class="text-neutral-600 tracking-wide">Health Check</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATE 3: ONLINE / TIMELINE -->
+            <div id="state-online" class="absolute inset-0 flex flex-col transition-all duration-700 z-10 opacity-0 translate-y-8 pointer-events-none overflow-y-auto pb-12">
+                <div class="max-w-2xl mx-auto w-full px-6 pt-16 md:pt-32">
+                    
+                    <h2 class="text-2xl font-medium tracking-tight text-neutral-900 mb-8 px-4">Recent Activity</h2>
+                    
+                    <div class="flex flex-col gap-3 relative before:absolute before:inset-y-0 before:left-[27px] before:w-px before:bg-neutral-200/60">
+                        
+                        <!-- Timeline Item -->
+                        <div class="flex gap-6 group relative z-10 opacity-0 translate-y-4 transition-all duration-500 timeline-entry" style="transition-delay: 100ms;">
+                            <div class="w-14 shrink-0 flex flex-col items-center">
+                                <div class="w-10 h-10 rounded-full bg-white border border-neutral-200/80 shadow-sm flex items-center justify-center text-neutral-400 group-hover:text-neutral-900 group-hover:border-neutral-300 transition-all z-10">
+                                    <iconify-icon icon="solar:import-linear" width="18"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="flex-1 pb-8 pt-2">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                                    <h3 class="text-sm font-medium text-neutral-900">Workflow Imported</h3>
+                                    <span class="text-[10px] text-neutral-400 font-geist-mono uppercase tracking-widest">Just now</span>
+                                </div>
+                                <p class="text-xs text-neutral-500 font-geist-mono">SDXL Base + Refiner template ready for deployment.</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Item -->
+                        <div class="flex gap-6 group relative z-10 opacity-0 translate-y-4 transition-all duration-500 timeline-entry" style="transition-delay: 200ms;">
+                            <div class="w-14 shrink-0 flex flex-col items-center">
+                                <div class="w-10 h-10 rounded-full bg-white border border-neutral-200/80 shadow-sm flex items-center justify-center text-emerald-500 group-hover:border-neutral-300 transition-all z-10">
+                                    <iconify-icon icon="solar:server-square-linear" width="18"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="flex-1 pb-8 pt-2">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                                    <h3 class="text-sm font-medium text-neutral-900">Engine Online</h3>
+                                    <span class="text-[10px] text-neutral-400 font-geist-mono uppercase tracking-widest">1m ago</span>
+                                </div>
+                                <p class="text-xs text-neutral-500 font-geist-mono">Pod provisioned. GPU: 1x RTX 4090 attached.</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Item -->
+                        <div class="flex gap-6 group relative z-10 opacity-0 translate-y-4 transition-all duration-500 timeline-entry" style="transition-delay: 300ms;">
+                            <div class="w-14 shrink-0 flex flex-col items-center">
+                                <div class="w-10 h-10 rounded-full bg-white border border-neutral-200/80 shadow-sm flex items-center justify-center text-neutral-400 group-hover:text-neutral-900 group-hover:border-neutral-300 transition-all z-10">
+                                    <iconify-icon icon="solar:box-minimalistic-linear" width="18"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="flex-1 pt-2">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                                    <h3 class="text-sm font-medium text-neutral-900">Environment Cached</h3>
+                                    <span class="text-[10px] text-neutral-400 font-geist-mono uppercase tracking-widest">Yesterday</span>
+                                </div>
+                                <p class="text-xs text-neutral-500 font-geist-mono">Volume snapshot saved securely.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Mobile Navigation -->
+    <nav class="md:hidden fixed bottom-0 w-full h-16 bg-white/80 backdrop-blur-md border-t border-neutral-200 flex items-center justify-around z-50 px-2 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.02)] pointer-events-auto">
+        <button class="flex flex-col items-center justify-center w-12 h-12 text-neutral-900 relative">
+            <iconify-icon icon="solar:home-angle-linear" width="22" height="22"></iconify-icon>
+            <span class="absolute -bottom-1 w-1 h-1 rounded-full bg-neutral-900"></span>
+        </button>
+        <button class="flex flex-col items-center justify-center w-12 h-12 text-neutral-400 hover:text-neutral-900">
+            <iconify-icon icon="solar:server-square-linear" width="22" height="22"></iconify-icon>
+        </button>
+        <button class="flex flex-col items-center justify-center w-12 h-12 text-neutral-400 hover:text-neutral-900">
+            <iconify-icon icon="solar:puzzle-linear" width="22" height="22"></iconify-icon>
+        </button>
+        <button class="flex flex-col items-center justify-center w-12 h-12 text-neutral-400 hover:text-neutral-900">
+            <iconify-icon icon="solar:gallery-minimalistic-linear" width="22" height="22"></iconify-icon>
+        </button>
+    </nav>
+
+    <script>
+        // Restrained 3D Background
+        let isEngineBooting = false;
+        let isEngineOnline = false;
+
+        const initThreeJS = () => {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0xfafafa, 0.0025);
+
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+
+            const camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+            camera.position.z = 25;
+            camera.position.y = 2;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0xfafafa, 0);
+            container.appendChild(renderer.domElement);
+
+            const geometry = new THREE.TorusKnotGeometry(10, 2, 120, 16);
+            
+            const material = new THREE.MeshPhysicalMaterial({
+                color: 0x888888, 
+                emissive: 0x000000,
+                roughness: 0.2,
+                metalness: 0.1,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.06
+            });
+            const torusKnot = new THREE.Mesh(geometry, material);
+            scene.add(torusKnot);
+
+            const sparkCount = 60;
+            const sparkGeo = new THREE.CircleGeometry(0.12, 4);
+            const sparkMat = new THREE.MeshBasicMaterial({
+                color: 0xa3a3a3,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.4,
+                depthTest: false
+            });
+            const sparks = new THREE.InstancedMesh(sparkGeo, sparkMat, sparkCount);
+            torusKnot.add(sparks);
+
+            const dummy = new THREE.Object3D();
+            const sparkData = [];
+            const radialSegments = 16;
+            const tubularSegments = 120;
+            
+            for (let i = 0; i < sparkCount; i++) {
+                sparkData.push({
+                    baseSpeed: 0.0003 + Math.random() * 0.0008,
+                    progress: Math.random(),
+                    pathIndex: Math.floor(Math.random() * radialSegments)
+                });
+            }
+
+            const posAttribute = geometry.attributes.position;
+            const stride = radialSegments + 1;
+            const v1 = new THREE.Vector3();
+            const v2 = new THREE.Vector3();
+
+            function updateSparks(speedMultiplier) {
+                sparkData.forEach((spark, i) => {
+                    spark.progress += spark.baseSpeed * speedMultiplier;
+                    if (spark.progress >= 1) spark.progress = 0;
+
+                    const exactInd = spark.progress * tubularSegments;
+                    const u = Math.floor(exactInd);
+                    const nextU = (u + 1) % tubularSegments;
+                    const v = spark.pathIndex;
+
+                    const idx1 = (u * stride + v) * 3;
+                    const idx2 = (nextU * stride + v) * 3;
+
+                    v1.fromArray(posAttribute.array, idx1);
+                    v2.fromArray(posAttribute.array, idx2);
+                    v1.lerp(v2, exactInd - u);
+
+                    dummy.position.copy(v1);
+                    dummy.lookAt(v2); 
+                    dummy.updateMatrix();
+                    sparks.setMatrixAt(i, dummy.matrix);
+                });
+                sparks.instanceMatrix.needsUpdate = true;
+            }
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+            scene.add(ambientLight);
+
+            let mouseX = 0, mouseY = 0;
+            let targetX = 0, targetY = 0;
+            const windowHalfX = window.innerWidth / 2;
+            const windowHalfY = window.innerHeight / 2;
+
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - windowHalfX) * 0.0002;
+                mouseY = (e.clientY - windowHalfY) * 0.0002;
+            });
+
+            // Target values for transitions
+            let targetOpacity = 0.06;
+            let speedMultiplier = 1;
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+
+                // Adjust based on state
+                if (isEngineBooting) {
+                    targetOpacity = 0.15; // Intensify slightly
+                    speedMultiplier = 4; // Speed up particles
+                } else if (isEngineOnline) {
+                    targetOpacity = 0.08;
+                    speedMultiplier = 1.5;
+                } else {
+                    targetOpacity = 0.06;
+                    speedMultiplier = 1;
+                }
+
+                // Smoothly transition material properties
+                material.opacity += (targetOpacity - material.opacity) * 0.05;
+
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+
+                let rotationSpeed = isEngineBooting ? 0.005 : 0.0008;
+
+                torusKnot.rotation.y += 0.03 * (targetX - torusKnot.rotation.y) + rotationSpeed;
+                torusKnot.rotation.x += 0.03 * (targetY - torusKnot.rotation.x) + (rotationSpeed / 2);
+
+                updateSparks(speedMultiplier);
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            const onResize = () => {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            };
+
+            window.addEventListener('resize', onResize);
+        };
+
+        window.addEventListener('DOMContentLoaded', initThreeJS);
+
+        // Control Room Interactions
+        document.getElementById('btn-start-engine').addEventListener('click', () => {
+            const stateIdle = document.getElementById('state-idle');
+            const stateBooting = document.getElementById('state-booting');
+            const stateOnline = document.getElementById('state-online');
+            const headerDot = document.getElementById('header-dot');
+            const headerText = document.getElementById('header-status-text');
+            const grid = document.getElementById('cinematic-grid');
+            const streak = document.getElementById('cinematic-streak');
+            
+            // 1. Trigger Animation States
+            isEngineBooting = true;
+            
+            // Update Header to Provisioning
+            headerDot.classList.replace('bg-neutral-300', 'bg-amber-400');
+            headerDot.classList.add('animate-pulse');
+            headerText.innerText = 'Provisioning...';
+
+            // Show Grid & Streak
+            grid.classList.add('active');
+            
+            // Re-trigger streak animation
+            streak.style.transition = 'none';
+            streak.classList.remove('active');
+            setTimeout(() => {
+                streak.style.transition = 'top 1.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease-in-out';
+                streak.classList.add('active');
+            }, 100);
+
+            // Transition Panels
+            stateIdle.classList.replace('opacity-100', 'opacity-0');
+            stateIdle.classList.replace('scale-100', 'scale-95');
+            stateIdle.classList.add('pointer-events-none');
+            
+            setTimeout(() => {
+                stateIdle.classList.add('hidden');
+                stateBooting.classList.remove('hidden');
+                
+                // Slight delay before fading in boot sequence
+                setTimeout(() => {
+                    stateBooting.classList.replace('opacity-0', 'opacity-100');
+                    stateBooting.classList.replace('scale-95', 'scale-100');
+                }, 50);
+            }, 700);
+
+            // 2. Cinematic Step Sequence
+            const steps = [
+                { id: 'step-1', delay: 1200 },
+                { id: 'step-2', delay: 2400 },
+                { id: 'step-3', delay: 3800 },
+                { id: 'step-4', delay: 5000 }
+            ];
+
+            steps.forEach((stepInfo, index) => {
+                setTimeout(() => {
+                    const el = document.getElementById(stepInfo.id);
+                    el.classList.add('active');
+                    
+                    // Add ping to current dot
+                    const ping = el.querySelector('.animate-ping');
+                    if(ping) ping.classList.replace('opacity-0', 'opacity-40');
+
+                    // Mark previous step as completed
+                    if (index > 0) {
+                        const prevEl = document.getElementById(steps[index-1].id);
+                        prevEl.classList.remove('active');
+                        prevEl.classList.add('completed');
+                        const prevPing = prevEl.querySelector('.animate-ping');
+                        if(prevPing) prevPing.remove();
+                    }
+                }, stepInfo.delay);
+            });
+
+            // 3. Finalize & Show Online State
+            setTimeout(() => {
+                document.getElementById('boot-title').innerText = 'Ready.';
+                const finalStep = document.getElementById(steps[steps.length-1].id);
+                finalStep.classList.remove('active');
+                finalStep.classList.add('completed');
+                const finalPing = finalStep.querySelector('.animate-ping');
+                if(finalPing) finalPing.remove();
+
+                setTimeout(() => {
+                    isEngineBooting = false;
+                    isEngineOnline = true;
+
+                    // Header becomes Green Online
+                    headerDot.classList.remove('animate-pulse');
+                    headerDot.classList.replace('bg-amber-400', 'bg-emerald-500');
+                    headerText.innerText = 'Engine Online';
+                    headerText.classList.replace('text-neutral-600', 'text-neutral-900');
+
+                    // Fade out effects
+                    grid.classList.remove('active');
+                    
+                    // Transition to Online Panel
+                    stateBooting.classList.replace('opacity-100', 'opacity-0');
+                    stateBooting.classList.replace('scale-100', 'scale-95');
+                    
+                    setTimeout(() => {
+                        stateBooting.classList.add('hidden');
+                        stateOnline.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            stateOnline.classList.replace('opacity-0', 'opacity-100');
+                            stateOnline.classList.replace('translate-y-8', 'translate-y-0');
+                            stateOnline.classList.replace('pointer-events-none', 'pointer-events-auto');
+
+                            // Stagger timeline entries
+                            document.querySelectorAll('.timeline-entry').forEach(entry => {
+                                entry.classList.replace('opacity-0', 'opacity-100');
+                                entry.classList.replace('translate-y-4', 'translate-y-0');
+                            });
+
+                        }, 50);
+                    }, 700);
+
+                }, 1000); // Hold on "Ready" for a second
+
+            }, 6500); // Total sequence time
+        });
+    </script>
+
+</body></html>
